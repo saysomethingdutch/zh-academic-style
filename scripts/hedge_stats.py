@@ -15,8 +15,19 @@
     待改稿用「不足以/不能仅/并不等于」，只测后者会把语料算成 0。
   · 家族②高而③正常 = 语料在断言做不到，你在声明自己没证到。
   · 划界型论文的②天然高于语料，逐条四分类后【骨】【引】留下即可，不必清零。
+
+口径：语料和稿件都只数正文（2026-09 修）。
+  · 语料 .md 视为 MinerU 解析稿，用 mineru_body.body_paras() 抽正文，正文段不足 15 的篇不计入；
+    .txt 视为 pdf_body.py 已按字号剔掉脚注的正文，整篇读。
+  · 稿件截掉注释/脚注/参考文献区与「<!-- 以下」之后的脚注定义，去掉标题、[^n] 注释行、
+    引用块与表格行（同 word_check.py --file）。
+  此前两边都整篇读，参考文献与脚注的汉字摊薄分母，和 SKILL.md 第四节"全量语料参照值"
+  （正文口径）对不上：民法 ③ 的 Q3 整篇读是 26.5，正文口径 27.8；一份带 88 条脚注的稿子
+  ③ 整篇读 23.9，只读正文 26.3。
 """
 import re, os, sys, glob, statistics as st
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from mineru_body import body_paras, expand, in_tmp
 
 FAM = {
  "① 延宕（仍须/尚待/有待/尚未）":      r'仍[须需待]|尚[须需待]|还[须需]|有待|尚未|仍未|留待|容后',
@@ -35,19 +46,36 @@ def scan(t):
     return {k: len(re.findall(p, t)) / z * 10000 for k, p in FAM.items()}
 
 def load(p):
+    fs = [p]
     if os.path.isdir(p):
-        fs = sorted(glob.glob(os.path.join(p, '**', '*.txt'), recursive=True)) + \
-             sorted(glob.glob(os.path.join(p, '**', '*.md'), recursive=True))
-        return [(os.path.basename(f), open(f, encoding='utf-8', errors='ignore').read()) for f in fs]
-    return [(os.path.basename(p), open(p, encoding='utf-8', errors='ignore').read())]
+        fs = [f for f in sorted(glob.glob(os.path.join(p, '**', '*.txt'), recursive=True))
+              if not in_tmp(f, p)] + expand([p])
+    out = []
+    for f in fs:
+        if f.endswith('.md'):
+            ps = body_paras(f)
+            if len(ps) < 15:
+                continue
+            t = '\n'.join(ps)
+        else:
+            t = open(f, encoding='utf-8', errors='ignore').read()
+        out.append((os.path.basename(f), t))
+    return out
+
+def draft(path):
+    raw = open(path, encoding='utf-8').read().split('<!-- 以下')[0]
+    for h in ('## 注释', '## 脚注', '## 参考文献'):
+        raw = raw.split(h)[0]
+    return '\n'.join(l for l in raw.split('\n')
+                     if not l.lstrip().startswith(('#', '[^', '>', '|')))
 
 def main():
     a = [x for x in sys.argv[1:] if not x.startswith('--')]
     if len(a) < 2:
         print(__doc__); sys.exit(1)
-    corpus, mine = load(a[0]), open(a[1], encoding='utf-8').read()
+    corpus, mine = load(a[0]), draft(a[1])
     if not corpus:
-        print(f"语料目录里没有 .txt/.md：{a[0]}"); sys.exit(1)
+        print(f"语料目录里没有可用的 .txt/.md（.md 须是正文段 ≥15 的 MinerU 解析稿）：{a[0]}"); sys.exit(1)
     rows = [scan(t) for _, t in corpus]
     md = scan(mine)
 

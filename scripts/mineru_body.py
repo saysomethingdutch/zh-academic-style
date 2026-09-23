@@ -64,11 +64,22 @@ def body_paras(path):
         out.append(p)
     return out
 
+def in_tmp(f, root):
+    """f 是否位于 root 之下某个名为 tmp 的子目录里（任意层级）。
+
+    只看 f 相对 root 的路径，不看绝对路径：旧写法 `'/tmp/' in f` 在语料目录本身
+    位于 /tmp 或 /private/tmp 之下时（如会话 scratchpad 里建的软链目录）
+    会把全部文件滤掉，下游随即除零。
+    """
+    return 'tmp' in os.path.relpath(f, root).split(os.sep)[:-1]
+
 def expand(paths):
+    """目录展开为其下全部 .md（跳过其中名为 tmp 的子目录）；文件与通配式原样取用。"""
     fs = []
     for a in paths:
         if os.path.isdir(a):
-            fs += sorted(glob.glob(os.path.join(a, '**', '*.md'), recursive=True))
+            fs += [f for f in sorted(glob.glob(os.path.join(a, '**', '*.md'), recursive=True))
+                   if not in_tmp(f, a)]
         else:
             fs += sorted(glob.glob(a))
-    return [f for f in fs if '/tmp/' not in f]
+    return fs

@@ -20,11 +20,11 @@
 
 作者名从文件名末段解析（`标题_作者.md`），解析不出的归入 '?'。
 """
-import sys, os, re, glob
+import sys, os, re
 from collections import defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from mineru_body import body_paras
+from mineru_body import body_paras, expand
 
 # ── 计数方式：默认按「真实成词」，不是子串 ───────────────────────────
 # 子串计数会把词内部的片段算进去。实测虚高率：分层 25%（"划分层级"）、
@@ -64,10 +64,7 @@ def count_word(text, w, exact=True):
 
 def load_corpus(root):
     docs = []
-    pat = os.path.join(root, '**', '*.md')
-    for f in sorted(glob.glob(pat, recursive=True)):
-        if '/tmp/' in f:
-            continue
+    for f in expand([root]):          # 跳过 root 之下名为 tmp 的子目录，见 mineru_body.in_tmp
         ps = body_paras(f)
         if len(ps) < 15:
             continue
@@ -113,6 +110,8 @@ def main():
         print("⚠ 未装 jieba，退回子串计数；实测虚高 0–25%，见脚本注释。\n", file=sys.stderr)
     docs = load_corpus(root)
     Z = sum(len(re.findall(r'[一-鿿]', t)) for _, t in docs)
+    if Z == 0:
+        sys.exit(f"语料目录里没有可用的 md（正文段 ≥15 的 MinerU 解析稿）：{root}")
     n_doc = len(docs)
     n_all_au = len({a for a, _ in docs})
     mz = len(re.findall(r'[一-鿿]', mine)) if mine else 0
