@@ -1661,16 +1661,34 @@ P0 是 n-gram 排序把真词挤到几百行之后，头部必然全假；这次
 
 ## 安装与同步
 
-本 skill 的**唯一源目录**是 `~/Documents/shared-skills/zh-academic-style/`，
-Claude 与 Codex 各以符号链接指向它，改一次两边即时生效：
+本 skill 的**唯一源目录**是 `~/.agents/skills/zh-academic-style/`（2026-09-23 由 `~/Documents/shared-skills/` 迁入）。
+`~/.agents/skills/` 是跨工具的通用技能目录，由 `skills` 管理工具维护（`~/.agents/.skill-lock.json`），
+**Codex 原生读取，不需要任何链接**；Claude Code 只读 `~/.claude/skills/`，所以 Claude 这边保留一条软链：
 
 ```bash
-ln -s ~/Documents/shared-skills/zh-academic-style ~/.claude/skills/zh-academic-style
-ln -s ~/Documents/shared-skills/zh-academic-style ~/.codex/skills/zh-academic-style
+ln -s ~/.agents/skills/zh-academic-style ~/.claude/skills/zh-academic-style
 ```
 
-编辑时直接改源目录。已验证：两侧 `glob('*/SKILL.md')` 均能发现该 skill（软链被跟随），
-穿软链执行 `scripts/` 下脚本的相对路径正常，源目录改动两侧即时可见。
-新增链接后需新开会话才会被重新发现。
+**不要再在 `~/.codex/skills/` 里放同名软链或拷贝**：Codex 会同时扫到两处，同一个 skill 列出两次。
 
-再加新的共享 skill 时照同一模式：真实目录放源目录，两边各建一条同名软链。
+编辑时直接改源目录，两侧即时可见；新增链接后需新开会话才会被重新发现。本目录是 git 仓库（无远端），
+迁移时整目录 `mv` 即可，历史随 `.git` 一起走。
+
+再加新的共享 skill 时照同一模式：
+
+- **仓库根就是 skill 根**的：整目录放进 `~/.agents/skills/<名称>/`，Claude 侧建一条同名软链。
+- **skill 只是某个项目仓库的子目录**的（如软著那个带 README、LICENSE、插件配置的仓库）：仓库留在原处，
+  在 `~/.agents/skills/<名称>` 建软链指向该子目录，Claude 侧软链再指向 `~/.agents/skills/<名称>`。
+  Codex 会把它列成带命名空间的形式（`名称:名称`），属正常现象。
+- **运行时状态不要放进 skill 目录**。浏览器配置、缓存、输出之类放 `~/.agents/state/<名称>/`
+  （pkulaw-browser 即如此）。几万个文件的目录放在 skill 里，会让 Codex 扫描 `~/.agents/skills` 时撞上遍历上限
+  （报 `skills scan reached its traversal limit`）。
+
+验证 Codex 是否认到：
+
+```bash
+echo "只根据已加载的技能清单列出所有 skill 名称，每行一个" | \
+  codex exec -s read-only --skip-git-repo-check --ephemeral - | grep zh-academic-style
+```
+
+注意 Codex 会把最终答复在日志末尾再打印一遍，每个名字本来就出现两次；带命名空间的名字要用子串匹配，别用整行匹配。
