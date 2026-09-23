@@ -1,0 +1,11 @@
+{"type":"object","additionalProperties":false,
+ "required":["事实偏离","旧有新无","逻辑最弱的段落","总体判断"],
+ "properties":{
+  "事实偏离":{"type":"array","items":{"type":"object","additionalProperties":false,
+     "required":["新稿原句","旧稿对应","偏离性质","严重程度"],
+     "properties":{"新稿原句":{"type":"string"},"旧稿对应":{"type":"string"},
+       "偏离性质":{"type":"string"},"严重程度":{"type":"string","enum":["高","中","低"]}}}},
+  "旧有新无":{"type":"array","items":{"type":"string"}},
+  "逻辑最弱的段落":{"type":"array","items":{"type":"object","additionalProperties":false,
+     "required":["段首","问题"],"properties":{"段首":{"type":"string"},"问题":{"type":"string"}}}},
+  "总体判断":{"type":"string"}}}

@@ -40,8 +40,21 @@ except ImportError:
 _SEG_CACHE = {}
 
 def count_word(text, w, exact=True):
-    """exact=True 用分词计数；无 jieba 或 exact=False 时退回子串并在报告里标注。"""
+    """exact=True 用分词计数；无 jieba、exact=False、或该词本身被切开时退回子串。
+
+    ⚠ 分词计数靠 `t == w` 匹配单个词元。若 w 本身被 jieba 切成多个词元
+    （「人格利益」→ 人格/利益，「归属判断」→ 归属/判断），就没有任何词元能等于 w，
+    计数恒为 0——而脚本会把这个 0 印成「★语料 0 次，禁用成立」，也就是说
+    **对任何词典外的多字短语，最强的那条判定都是结构性假阴性**。
+    2026-09 实测（民法所 387 篇）：人格利益 子串 185 次/26 篇、人格要素 21/5、
+    归属判断 3/3，分词一律报 0。同一批里 自我呈现、社会形象、显性标识 子串也是 0，
+    那三个才是真的 0——两者在旧口径下完全无法区分。
+    多字短语因而改走子串：词越长，被当成更长词内部片段的概率越低，
+    这点偏差远小于"恒为 0"的代价。
+    """
     if not (exact and _HAS_JIEBA):
+        return text.count(w), False
+    if len(list(jieba.cut(w))) > 1:
         return text.count(w), False
     key = id(text)
     if key not in _SEG_CACHE:
