@@ -24,6 +24,9 @@
   民法 30.2 / 36.3 / 43.4、国际法 26.6 / 33.0 / 39.4；两套不可混比，旧口径下的稿件 P 值要按新口径重算。
 一份 AI 协作稿：① 4.3%（低于全部 363 篇），转折 0.3%（P1）——每二十多句才有一句交代自己与上一句的关系。
 见 SKILL.md 第五节之二。
+
+⚠ 2026-10：同一份稿子按这三项把连接词补进区间之后，读者查出重复解释、假想反驳、一句多任务、推论过满。
+偏低只是提示，不是目标；输出里 ↓<Q1 的项读一遍即可，读者不觉得断就不补。见 SKILL.md 第零节。
 """
 import re, sys, os, glob, bisect, statistics as st
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -132,8 +135,11 @@ def main():
         print(f'\n{os.path.basename(d)}（{r["n"]} 句）')
         for k, nm in ROWS:
             v = sorted(x[k] for x in R); pct = bisect.bisect(v, r[k]) / len(v) * 100
-            flag = '  ⚠<Q1' if r[k] < v[len(v)//4] else ''
+            # 偏低只提示、不当目标（2026-10）：为把 ① 补进区间而加连接词，曾把一篇稿子改出重复解释和假想反驳
+            flag = ('  ↓<Q1 读一遍，读者不觉得断就不补' if r[k] < v[len(v)//4] else
+                    '  ⚠>Q3 回头删多余的连接词' if r[k] > v[3*len(v)//4] else '')
             print(f'  {nm:18} {r[k]:5.1f}   P{pct:.0f}{flag}')
+        print('  这些数只说明哪里值得读一遍。先按 SKILL.md 第零节七问读，再决定改不改；不为指标加字。')
 
 if __name__ == '__main__':
     main()
