@@ -81,6 +81,8 @@ def main():
         hand.append(f"情态{mc['type']} {mc['from']}→{mc['to']}：{mc['before'][:50]}")
     for s in re.findall(STRONG_CTX, body):
         hand.append(f"强断言：{s.strip()}")
+    for s in re.findall(r"[^。]{0,30}正如[^。]{2,40}所(?:指出|揭示|言|说|示|强调|提示)[^。]{0,30}", body):
+        hand.append(f"正如…所X的（转述改引述，核对归因）：{s.strip()}")
     for p in paras(body):
         c = sum(1 for s in sents(p) if re.search(CONN, s))
         if c > 2:
