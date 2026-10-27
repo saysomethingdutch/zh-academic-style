@@ -6,6 +6,7 @@
   段末否定%         paragraph ends on a negative
   裸主题句段%       paragraph opens with a ≤22-char comma-free judgement used as a heading
   疑问并列          "谁负责什么、谁审核什么" question lists
+  正反问/问句缩略语/公文隐喻   spoken register: 能不能/许不许; 为何控/控什么 used as terms; 抓手/落地/短板/体检/复盘
   句首两字分布      --openers: which two characters start sentences (shows a monotone bridging tic)
 
 Usage:
@@ -13,6 +14,7 @@ Usage:
   defense_stats.py --corpus DIR FILE          compare FILE against the Q1/median/Q3 of DIR/*.md
   defense_stats.py --openers FILE             top sentence openers
   defense_stats.py --list FILE                list every defensive sentence / bare topic sentence
+  defense_stats.py --register FILE            list 正反问 / 问句缩略语 / 公文隐喻 hits with context
 Standard library only. Markdown input: footnote definitions ([^n]: …) and HTML comments are stripped.
 """
 import glob
@@ -25,6 +27,18 @@ DEF = r"不构成|不等于|不能据此|不能直接|不能仅|不能简单|不
 TOPIC = r"^[^，；：、]{4,22}(?:是|为|提供了|构成|属于|涉及|包括|来自|决定|影响|需要|要求|存在|体现为|表现为|成为|形成|具有|带来|意味着|在于)[^，；：、]{0,14}。$"
 QLIST = r"(?:[一-鿿]{2,8}(?:负责|审核|核实|承担|决定|回答|处理|提供|记录|说明|解决)(?:什么|哪些|谁|如何|怎样)[、，]){2,}"
 PARA3 = r"[一-鿿]{2,6}(?:什么|哪些|如何|怎样|是否)[、，][一-鿿]{2,6}(?:什么|哪些|如何|怎样|是否)[、，]"
+# 口语/语域（五之四"口语化"一节）。
+# 正反问：模型用它表达"是否"；期刊每万字 0.0（Q3），本稿改写后 0.45。
+VX = r"[能许愿懂会敢肯要该是有][不没][能许愿懂会敢肯要该是有](?![一-鿿]{0,2}[的地得])|拿不准|说不清|分不清|看不出|跟不上|接不上|对不上|算不算|行不行"
+# 问句缩略语当术语："为何控/控什么"这类只应在章引里当修辞出现一次。
+QABBR = r"为何控|控什么|控得如何|依何控|如何控|控向何方"
+# 公文隐喻分两档（2026-10-27 按 118 篇纪检监察期刊语料回测，看作者数不看总频次）：
+#   JARGON_RARE  期刊里 ≤6 位作者用、或最高一位占比 ≥50%——本稿出现就该换词。
+#   JARGON_COMMON 期刊里 ≥10 位作者用（落地 42 人、短板 44 人、抓手 36 人、筑牢 37 人、夯实 36 人）——
+#                 是这个领域的通行语，只报密度，不当 AI 信号；要不要改是作者文体偏好。
+JARGON_RARE = r"(?<!具)体检|复盘|挡箭牌|护身符|背书|站台|买账|兜底|兜住|卡住|卡点|重头戏|硬骨头|一揽子|一张网|拧紧|扎紧|管住|管好|用活|盘活|撬动|保驾|翻篇|变味|跑偏|走样|走过场|摆设|钻空子|开口子|甩锅|背锅|买单|埋单|踢皮球|和稀泥|一言堂|拍脑袋|一阵风|一窝蜂|牛鼻子|关键一招|硬功夫|真功夫|绣花功夫|真刀真枪|动真格|较真|碰硬|擦边|实打实|硬碰硬|不折不扣|总开关|压舱石|定盘星|试金石|风向标|晴雨表|指挥棒|接力棒|高压线|板子|帽子|棍子"
+JARGON_COMMON = r"落地|短板|筑牢|抓手|夯实|笼子|压实|痛点|突破口|堵点|用好|护航|一盘棋|织密|切入点|落脚点|防火墙|一刀切|着力点|打折扣|亮点|立足点|篱笆|亮剑"
+JARGON = JARGON_RARE + "|" + JARGON_COMMON
 CONN = r"^(?:因此|因而|由此|所以|这意味着|正因|换言之|也就是说|但|然而|不过|反之|相应地|进而|于是|可见|这表明|这说明|其中|就.{1,6}而言|与此|同样|相比之下|例如|比如|一方面|另一方面|不仅|即便|即使|尽管|虽然|如果|若)"
 
 
@@ -64,6 +78,10 @@ def metrics(t):
         "句首连接词%": round(sum(1 for s in S if re.search(CONN, s)) / max(1, len(S)) * 100, 1),
         "这字起句%": round(sum(1 for s in S if re.match(r"[“\"(（]*(?:这|对这|围绕这)", s)) / max(1, len(S)) * 100, 1),
         "还涉及类/万字": round(len(re.findall(r"还涉及|也涉及|还可以|也可以|还需要|也需要", t)) / n, 1),
+        "正反问/万字": round(len(re.findall(VX, t)) / n, 2),
+        "问句缩略语/万字": round(len(re.findall(QABBR, t)) / n, 2),
+        "公文隐喻·罕见/万字": round(len(re.findall(JARGON_RARE, t)) / n, 2),
+        "公文隐喻·通行/万字": round(len(re.findall(JARGON_COMMON, t)) / n, 2),
         "句数CV": round(st.pstdev(sc) / st.mean(sc), 2) if len(sc) > 1 and st.mean(sc) else 0,
         "句长中位": st.median([cjk(s) for s in S]) if S else 0,
     }
@@ -87,6 +105,13 @@ def main():
         c = Counter(re.sub(r"^[“\"(（]*", "", s)[:2] for s in S)
         for k, v in c.most_common(15):
             print(f"{k}  {v/len(S)*100:.1f}%")
+        return
+    if a[0] == "--register":
+        t = body(open(a[1], encoding="utf-8").read())
+        for name, pat in (("正反问", VX), ("问句缩略语", QABBR), ("公文隐喻·罕见", JARGON_RARE), ("公文隐喻·通行", JARGON_COMMON)):
+            for m in re.finditer(pat, t):
+                s = max(0, m.start() - 24)
+                print(f"〔{name}〕{m.group(0)}  …{t[s:m.end()+18].replace(chr(10), ' ')}…")
         return
     if a[0] == "--list":
         t = body(open(a[1], encoding="utf-8").read())
